@@ -14,8 +14,7 @@
     "format": "oxfmt",
     "test:browser": "playwright test",
     "typecheck": "tsc --noEmit",
-    "build:portable": "node scripts/build-portable.mjs",
-    "test:portable": "playwright test --config playwright.portable.config.ts"
+    "start:windows": "node scripts/start-windows.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

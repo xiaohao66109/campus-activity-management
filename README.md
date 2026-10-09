@@ -4,17 +4,15 @@
 
 基于 V1.0 的有限范围迭代。用户选择仅实现已确认内容，未明确流程暂不启用。原始代码在 Git 标签 v1.0-baseline 中，原始 ZIP 未修改。
 
-## 运行
+## Windows 64 位启动
 
-**推荐统一入口：双击项目根目录的“打开校园活动系统.html”。** Windows、macOS 和 Linux 均使用这一文件，通过现代浏览器运行；无需 Node.js、命令行、服务器或联网安装。页面、脚本和样式全部内嵌在同一个文件中。也可只把此 HTML 文件发送给接收者。
+唯一启动入口为 **启动系统.cmd**，HTML 启动已删除。
 
-离线版数据保存在打开它的当前浏览器中。更换电脑、浏览器或文件位置不会自动同步原数据；它与 `http://localhost:3000` 开发版的数据也不自动共享。请使用普通浏览器窗口，允许网站保存本地数据。
+**发给别人使用：请提供“校园活动管理系统V2.0_Windows64运行版.zip”。** 该包内含64位Node.js、运行依赖和完整项目。接收者在Windows 10/11 x64上右键“全部解压缩”，进入文件夹后双击CMD即可，无需安装Node.js/npm或联网安装依赖。请不要直接在ZIP内部双击脚本。
 
-下面的 Node.js 启动方式供开发和修改源码使用：
+CMD优先使用runtime/node.exe，启动本地服务器，等待页面准备好后自动打开默认浏览器。窗口需要保持打开，Ctrl+C可停止服务器；3000端口被占用时尝试下一个端口。首次启动编译可能需要一段时间。数据仍保存在当前浏览器中，更换电脑或浏览器不自动共享数据。
 
-如果使用源码 ZIP，请先右键选择“全部解压缩”，再进入解压后的项目文件夹。开发用 CMD 为 `启动系统.cmd`，不要直接在压缩包内运行它，否则 Windows 的临时目录中只有脚本，缺少依赖配置，`npm ci` 会报错。
-
-安装 Node.js 22.13 以上版本（建议24），在本目录运行 `npm ci`、`npm run dev`，访问 http://localhost:3000/ 。Windows 也可双击 `启动系统.cmd`；macOS/Linux 使用上述终端命令。开发运行窗口需要保持打开。生产产物可执行 `npm run build` 后 `npm start`，终端会显示端口。
+**源码包和GitHub检出用于开发**，不附带大型运行环境与node_modules；需要自行安装Node.js 22.13以上（建议24）及npm，CMD在缺少依赖时执行npm ci。也可手动运行npm ci、npm run dev，访问http://localhost:3000/。
 
 ## 新安装演示账号
 
@@ -43,9 +41,7 @@
 
 `npm test`、`npm run lint`、`npm run typecheck`、`npm run build`、`npm run test:browser`。
 
-修改源码后执行 `npm run build:portable` 更新单文件入口；`npm run test:portable` 通过 `file://` 执行相同的 7 项浏览器测试，默认覆盖 Edge 和 WebKit。测试阻断外部网络请求并断言无 HTTP 请求或页面脚本错误，首次需用 `npx playwright install webkit` 安装测试引擎。可用环境变量 `PORTABLE_TEST_FIREFOX=1` 加测 Firefox，需要额外安装相应测试浏览器及操作系统运行库。
-
-本机 Windows 上 Edge/WebKit 的14项离线浏览器场景通过；没有实际 macOS/Linux 设备测试，Firefox 测试引擎因本机运行库缺失未完成。通用入口不包含 Windows 专用运行程序，使用浏览器标准 API；建议在接收方的现代 Chrome、Edge 或 Safari 中打开。
+Windows运行包验证使用已复制的独立目录、包内Node.js及完整依赖，测试进程PATH移除系统Node.js/npm目录。7个浏览器业务场景通过本地HTTP页面执行，具体证据见docs/windows-delivery.md。
 
 浏览器测试默认使用已安装的 Microsoft Edge，并自动启动本地服务。其他系统运行 `npx playwright install chromium` 后设置 PLAYWRIGHT_CHANNEL=chromium。测试使用隔离上下文，证据在 docs/test-results。
 
@@ -65,4 +61,4 @@
 - docs/v2-acceptance-status.md：18项验收场景当前状态。
 - docs/screenshots：实际测试截图。
 
-实验报告在上一级校园管理系统目录。未知姓名、班级、组名、真实分工、签名和人工复核内容留空，提交前本人填写。
+实验报告在上一级校园管理系统目录及docs中，成员、班级、组名、分工、签名和核对状态已按用户确认填写。

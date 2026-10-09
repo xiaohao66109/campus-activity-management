@@ -1,28 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
-let screenshotDir = 'docs/screenshots';
-const networkRequests = new WeakMap<Page, string[]>();
-const pageErrors = new WeakMap<Page, string[]>();
-test.beforeEach(async ({ page }, testInfo) => {
-  screenshotDir = process.env.PORTABLE_APP_URL ? `docs/screenshots/portable/${testInfo.project.name}` : 'docs/screenshots';
-  await mkdir(screenshotDir, { recursive: true });
-  if (process.env.PORTABLE_APP_URL) {
-    networkRequests.set(page, []); pageErrors.set(page, []);
-    await page.route(/^https?:/, (route) => route.abort());
-    page.on('request', (request) => { if (/^https?:/.test(request.url())) networkRequests.get(page)!.push(request.url()); });
-    page.on('pageerror', (error) => pageErrors.get(page)!.push(error.message));
-  }
-});
-test.afterEach(async ({ page }) => {
-  if (process.env.PORTABLE_APP_URL) {
-    expect(networkRequests.get(page)).toEqual([]);
-    expect(pageErrors.get(page)).toEqual([]);
-  }
-});
+const screenshotDir = process.env.CAMPUS_TEST_URL ? 'docs/screenshots/windows-runtime' : 'docs/screenshots';
+test.beforeEach(async () => { await mkdir(screenshotDir, { recursive: true }); });
 
 async function login(page: Page, role: '学生' | '教师' | '管理员') {
-  await page.goto(process.env.PORTABLE_APP_URL || '/');
+  await page.goto('/');
   await page.getByRole('button', { name: new RegExp(`^${role}：`) }).click();
   await page.getByRole('button', { name: '进入活动中心', exact: true }).click();
 }
@@ -75,7 +58,7 @@ test('B03 管理员记录状态恢复和全平台只读监管', async ({ page })
   await page.screenshot({ path: `${screenshotDir}/admin.png`, fullPage: true });
 });
 test('B04 新学生注册以及教师创建发布活动回归', async ({ page }) => {
-  await page.goto(process.env.PORTABLE_APP_URL || '/'); await page.getByRole('tab', { name: '学生注册' }).click();
+  await page.goto('/'); await page.getByRole('tab', { name: '学生注册' }).click();
   await page.getByLabel('姓名', { exact: true }).fill('测试学生');
   await page.getByLabel('校园邮箱').fill('new@campus.edu.cn');
   await page.getByLabel('设置密码').fill('Student123');
@@ -96,7 +79,7 @@ test('B04 新学生注册以及教师创建发布活动回归', async ({ page })
 });
 test('B05 损坏存储显示错误并保留原数据', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('campus-activity-v2-store', '{broken'));
-  await page.goto(process.env.PORTABLE_APP_URL || '/'); await expect(page.getByRole('heading', { name: '数据需要检查' })).toBeVisible();
+  await page.goto('/'); await expect(page.getByRole('heading', { name: '数据需要检查' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('campus-activity-v2-store'))).toBe('{broken');
 });
 
@@ -106,7 +89,7 @@ test('B06 V1浏览器数据迁移备份保留旧记录并新增管理员', async
     { id: 'legacy-s', role: 'student', name: '旧学生', email: 'old-s@campus.edu.cn', salt: 's', passwordHash: 'hash' },
   ], activities: [{ id: 'legacy-a', organizerId: 'legacy-t', title: '旧活动', category: '文化', description: '迁移前活动原始说明', location: '礼堂', capacity: 10, status: 'published', startAt: '2035-01-01T10:00:00Z', endAt: '2035-01-01T12:00:00Z', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }], registrations: [{ id: 'legacy-r', studentId: 'legacy-s', activityId: 'legacy-a', status: 'active', registeredAt: '2026-01-02T00:00:00Z', cancelledAt: null }] };
   await page.addInitScript((data) => { if (!localStorage.getItem('campus-activity-v1-store')) localStorage.setItem('campus-activity-v1-store', JSON.stringify(data)); }, legacy);
-  await page.goto(process.env.PORTABLE_APP_URL || '/'); await expect(page.getByRole('button', { name: '进入活动中心', exact: true })).toBeVisible();
+  await page.goto('/'); await expect(page.getByRole('button', { name: '进入活动中心', exact: true })).toBeVisible();
   const result = await page.evaluate(() => ({ state: JSON.parse(localStorage.getItem('campus-activity-v2-store')!), old: localStorage.getItem('campus-activity-v1-store'), backup: localStorage.getItem('campus-activity-v1-backup') }));
   expect(result.state.version).toBe(2); expect(result.old).toBe(JSON.stringify(legacy)); expect(result.backup).toBe(result.old);
   expect(result.state.registrations).toEqual(legacy.registrations);

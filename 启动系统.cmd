@@ -3,34 +3,41 @@ setlocal
 cd /d "%~dp0"
 if not exist "package.json" goto missing_project
 if not exist "package-lock.json" goto missing_project
-where node >nul 2>nul
-if errorlevel 1 (
- echo Please install Node.js 22.13 or later.
+if not exist "scripts\start-windows.mjs" goto missing_project
+set "NODE_EXE="
+if exist "%~dp0runtime\node.exe" set "NODE_EXE=%~dp0runtime\node.exe"
+if defined NODE_EXE goto node_ready
+for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
+if not defined NODE_EXE (
+ echo Node.js was not found. Use the complete Windows x64 runtime ZIP.
+ echo That ZIP includes Node.js and dependencies; no installation is required.
  pause
  exit /b 1
 )
-where npm >nul 2>nul
-if errorlevel 1 (
- echo npm was not found. Please reinstall Node.js with npm included.
- pause
- exit /b 1
-)
-if not exist "node_modules\.bin\vinext.cmd" (
+:node_ready
+set "PATH=%~dp0runtime;%PATH%"
+if not exist "node_modules\vinext\dist\cli.js" (
+ where npm >nul 2>nul
+ if errorlevel 1 (
+  echo Dependencies and npm were not found. Please use the complete Windows x64 runtime ZIP.
+  pause
+  exit /b 1
+ )
  call npm ci
  if errorlevel 1 (
+  echo Dependency installation failed. Use the Windows x64 runtime ZIP for offline startup.
   pause
   exit /b 1
  )
 )
-echo Open http://localhost:3000/ after the server is ready.
-call npm run dev
+"%NODE_EXE%" "%~dp0scripts\start-windows.mjs" %*
+set "START_EXIT=%ERRORLEVEL%"
+if "%~1"=="--check" exit /b %START_EXIT%
 pause
-exit /b
-
+exit /b %START_EXIT%
 :missing_project
 echo The complete project files were not found in this folder.
-echo Extract ALL files from the ZIP first, then run this script from the extracted folder.
-echo Do not double-click this script inside the ZIP archive.
-echo Required files: package.json and package-lock.json alongside this script.
+echo Extract ALL files from the ZIP first, then double-click this script from the extracted folder.
+echo Do not run this script directly inside the ZIP archive.
 pause
 exit /b 1

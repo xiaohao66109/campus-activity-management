@@ -1,0 +1,21 @@
+﻿校园活动管理系统 V2.0 Windows 64位运行版
+
+唯一入口：启动系统.cmd
+适用：Windows 10/11 x64，使用现代Edge或Chrome浏览器。
+
+1. 右键ZIP选择“全部解压缩”，不要直接在ZIP内运行。
+2. 打开解压后的文件夹，双击“启动系统.cmd”。
+3. 等待编译完成，浏览器会自动打开；运行窗口需要保持打开。
+4. 按Ctrl+C可以停止服务。端口被占用时会自动尝试后续端口，请以窗口显示的网址为准。
+
+本运行包已包含Node.js和依赖，无需安装Node.js/npm，也无需联网安装依赖。
+源码ZIP与GitHub仓库不附带这些大型依赖；发给没有开发环境的人时请使用Windows64运行版。
+
+演示账号：
+学生 student@campus.edu.cn / Student123
+教师 teacher@campus.edu.cn / Teacher123
+另一位教师 teacher2@campus.edu.cn / Teacher123
+管理员 admin@campus.edu.cn / Admin123
+
+数据保存在当前浏览器中，不会自动在电脑之间同步。
+代码仓库：https://github.com/xiaohao66109/campus-activity-management
