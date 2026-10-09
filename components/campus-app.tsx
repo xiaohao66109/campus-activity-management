@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AdminDashboard, RegistrationRoster } from '@/components/v2-panels';
 import {
   CalendarDays,
   CheckCircle2,
@@ -12,12 +13,13 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  UserRound,
   Users,
   XCircle,
 } from 'lucide-react';
 
 import {
+  registrationLabel,
+  roleLabels,
   activeRegistration,
   activeRegistrationCount,
   canRegister,
@@ -31,6 +33,7 @@ import {
   type User,
 } from '@/lib/campus-domain';
 import {
+  STORE_KEY,
   hashPassword,
   loadOrCreateState,
   loadSession,
@@ -206,7 +209,7 @@ function AuthScreen({ state, onStateChange, onLogin, feedback, setFeedback }: {
 
         <aside className="flex items-center border-t border-border bg-card px-6 py-10 sm:px-10 lg:border-l lg:border-t-0 lg:px-14">
           <div className="mx-auto w-full max-w-md">
-            <div className="mb-7"><p className="text-sm font-medium text-primary">欢迎回来</p><h2 className="mt-2 text-3xl font-semibold tracking-tight">登录活动中心</h2><p className="mt-2 text-base text-muted-foreground">学生可以注册账号，教师请使用预置账号登录。</p></div>
+            <div className="mb-7"><p className="text-sm font-medium text-primary">欢迎回来</p><h2 className="mt-2 text-3xl font-semibold tracking-tight">登录活动中心</h2><p className="mt-2 text-base text-muted-foreground">学生可以注册账号，教师和管理员请使用预置账号登录。</p></div>
             <FeedbackBanner feedback={feedback} />
             <Tabs defaultValue="login" onValueChange={() => setFeedback(null)}>
               <TabsList className="mb-6 grid h-11 w-full grid-cols-2 rounded-xl"><TabsTrigger value="login" className="h-full rounded-lg">登录</TabsTrigger><TabsTrigger value="register" className="h-full rounded-lg">学生注册</TabsTrigger></TabsList>
@@ -220,6 +223,7 @@ function AuthScreen({ state, onStateChange, onLogin, feedback, setFeedback }: {
                   <p className="flex items-center gap-2 font-medium"><ShieldCheck className="size-4 text-primary" />演示账号</p>
                   <button type="button" className="demo-account" onClick={() => { setLoginEmail('teacher@campus.edu.cn'); setLoginPassword('Teacher123'); }}>教师：teacher@campus.edu.cn / Teacher123</button>
                   <button type="button" className="demo-account" onClick={() => { setLoginEmail('student@campus.edu.cn'); setLoginPassword('Student123'); }}>学生：student@campus.edu.cn / Student123</button>
+                  <button type="button" className="demo-account" onClick={() => { setLoginEmail('admin@campus.edu.cn'); setLoginPassword('Admin123'); }}>管理员：admin@campus.edu.cn / Admin123</button>
                 </div>
               </TabsContent>
               <TabsContent value="register">
@@ -231,7 +235,7 @@ function AuthScreen({ state, onStateChange, onLogin, feedback, setFeedback }: {
                 </form>
               </TabsContent>
             </Tabs>
-            <p className="mt-7 text-center text-sm text-muted-foreground">V1.0 教学原型 · 数据仅保存在当前浏览器</p>
+            <p className="mt-7 text-center text-sm text-muted-foreground">V2.0 确认范围原型 · 数据仅保存在当前浏览器</p>
           </div>
         </aside>
       </div>
@@ -241,12 +245,13 @@ function AuthScreen({ state, onStateChange, onLogin, feedback, setFeedback }: {
 
 function ActivityCard({ activity, state, student, onOpen }: { activity: Activity; state: AppState; student: User; onOpen: () => void }) {
   const count = activeRegistrationCount(state, activity.id);
-  const registered = Boolean(activeRegistration(state, activity.id, student.id));
+  const record = state.registrations.find((r) => r.activityId === activity.id && r.studentId === student.id && r.status !== 'cancelled');
+  const registered = Boolean(record);
   const error = canRegister(state, activity.id, student.id);
   return (
     <Card className="activity-card border-0 shadow-sm ring-1 ring-border">
       <CardHeader>
-        <div className="flex items-center justify-between gap-3"><Badge variant="secondary">{activity.category}</Badge>{registered ? <Badge>已报名</Badge> : error ? <Badge variant="outline">{error.includes('名额') ? '已满' : '不可报名'}</Badge> : <Badge variant="outline" className="text-primary">报名中</Badge>}</div>
+        <div className="flex items-center justify-between gap-3"><Badge variant="secondary">{activity.category}</Badge>{registered ? <Badge>{record ? registrationLabel(record, activity) : '已报名'}</Badge> : error ? <Badge variant="outline">{error.includes('名额') ? '已满' : '不可报名'}</Badge> : <Badge variant="outline" className="text-primary">报名中</Badge>}</div>
         <CardTitle className="mt-3 text-lg">{activity.title}</CardTitle>
         <CardDescription className="line-clamp-2 leading-6">{activity.description}</CardDescription>
       </CardHeader>
@@ -265,7 +270,7 @@ function StudentDashboard({ user, state, onStateChange, feedback, setFeedback }:
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const published = state.activities.filter((item) => item.status === 'published');
   const visible = published.filter((item) => `${item.title}${item.category}${item.location}`.toLowerCase().includes(search.trim().toLowerCase()));
-  const myRegistrations = state.registrations.filter((item) => item.studentId === user.id && item.status === 'active');
+  const myRegistrations = state.registrations.filter((item) => item.studentId === user.id);
   const selected = state.activities.find((item) => item.id === selectedId) ?? null;
 
   function update(result: ReturnType<typeof registerForActivity>, success: string) {
@@ -276,7 +281,7 @@ function StudentDashboard({ user, state, onStateChange, feedback, setFeedback }:
 
   return (
     <div className="workspace-content">
-      <div className="page-heading"><div><p className="eyebrow">学生工作台</p><h1>你好，{user.name}</h1><p>查看近期校园活动，管理你的报名安排。</p></div><div className="stat-pill"><CalendarDays className="size-5 text-primary" /><span><strong>{published.length}</strong> 个活动开放</span></div></div>
+      <div className="page-heading"><div><p className="eyebrow">学生工作台</p><h1>你好，{user.name}</h1><p>查看近期校园活动，管理你的报名安排。</p><p className="mt-2 text-sm">候补入队与递补规则待确认，暂不开放；预置申请仅用于演示资格状态。</p></div><div className="stat-pill"><CalendarDays className="size-5 text-primary" /><span><strong>{published.length}</strong> 个活动开放</span></div></div>
       <FeedbackBanner feedback={feedback} />
       <Tabs defaultValue="discover" onValueChange={() => setFeedback(null)}>
         <TabsList variant="line" className="mb-7"><TabsTrigger value="discover">活动广场</TabsTrigger><TabsTrigger value="mine">我的报名 <Badge variant="secondary">{myRegistrations.length}</Badge></TabsTrigger></TabsList>
@@ -285,13 +290,13 @@ function StudentDashboard({ user, state, onStateChange, feedback, setFeedback }:
           {visible.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((activity) => <ActivityCard key={activity.id} activity={activity} state={state} student={user} onOpen={() => setSelectedId(activity.id)} />)}</div> : <div className="empty-state"><Search className="size-8" /><h3>没有找到相关活动</h3><p>尝试更换关键词。</p></div>}
         </TabsContent>
         <TabsContent value="mine">
-          {myRegistrations.length ? <div className="space-y-4">{myRegistrations.map((registration) => { const activity = state.activities.find((item) => item.id === registration.activityId); if (!activity) return null; return <Card key={registration.id} className="border-0 shadow-sm ring-1 ring-border"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="mb-2 flex items-center gap-2"><Badge variant="secondary">{activity.category}</Badge><Badge>报名成功</Badge></div><h3 className="text-lg font-semibold">{activity.title}</h3><p className="mt-2 text-sm text-muted-foreground">{formatDate(activity.startAt)} · {activity.location}</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => setSelectedId(activity.id)}>查看详情</Button><Button variant="destructive" onClick={() => update(cancelRegistration(state, activity.id, user.id), '报名已取消，名额已释放')}>取消报名</Button></div></CardContent></Card>; })}</div> : <div className="empty-state"><ClipboardList className="size-8" /><h3>还没有报名活动</h3><p>前往活动广场选择感兴趣的活动。</p></div>}
+          {myRegistrations.length ? <div className="space-y-4">{myRegistrations.map((registration) => { const activity = state.activities.find((item) => item.id === registration.activityId); if (!activity) return null; return <Card key={registration.id} className="border-0 shadow-sm ring-1 ring-border"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="mb-2 flex items-center gap-2"><Badge variant="secondary">{activity.category}</Badge><Badge>{registrationLabel(registration, activity)}</Badge></div><h3 className="text-lg font-semibold">{activity.title}</h3><p className="mt-2 text-sm text-muted-foreground">{formatDate(activity.startAt)} · {activity.location}</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => setSelectedId(activity.id)}>查看详情</Button><Button disabled={registration.status !== 'active' || activity.status !== 'published'} variant="destructive" onClick={() => update(cancelRegistration(state, activity.id, user.id), '报名已取消，名额已释放')}>取消报名</Button></div></CardContent></Card>; })}</div> : <div className="empty-state"><ClipboardList className="size-8" /><h3>还没有报名活动</h3><p>前往活动广场选择感兴趣的活动。</p></div>}
         </TabsContent>
       </Tabs>
 
       <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelectedId(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          {selected && <><SheetHeader className="border-b p-6"><div className="mb-2 flex gap-2"><Badge variant="secondary">{selected.category}</Badge><Badge variant="outline">{activeRegistrationCount(state, selected.id)}/{selected.capacity} 人</Badge></div><SheetTitle className="pr-8 text-2xl">{selected.title}</SheetTitle><SheetDescription>由王老师组织</SheetDescription></SheetHeader><div className="space-y-6 p-6"><div className="detail-row"><CalendarDays /><div><span>活动时间</span><strong>{formatDate(selected.startAt)}</strong></div></div><div className="detail-row"><MapPin /><div><span>活动地点</span><strong>{selected.location}</strong></div></div><div className="detail-row"><Users /><div><span>报名情况</span><strong>{activeRegistrationCount(state, selected.id)} 人已报名，剩余 {Math.max(0, selected.capacity - activeRegistrationCount(state, selected.id))} 个名额</strong></div></div><div><h3 className="mb-3 font-semibold">活动说明</h3><p className="leading-7 text-muted-foreground">{selected.description}</p></div></div><SheetFooter className="border-t bg-card p-6">{activeRegistration(state, selected.id, user.id) ? <Button variant="destructive" className="h-11" onClick={() => update(cancelRegistration(state, selected.id, user.id), '报名已取消，名额已释放')}>取消报名</Button> : <Button className="h-11" disabled={Boolean(canRegister(state, selected.id, user.id))} onClick={() => update(registerForActivity(state, selected.id, user.id), '报名成功，可在“我的报名”中查看')}>{canRegister(state, selected.id, user.id) ?? '确认报名'}</Button>}</SheetFooter></>}
+          {selected && <><SheetHeader className="border-b p-6"><div className="mb-2 flex gap-2"><Badge variant="secondary">{selected.category}</Badge><Badge variant="outline">{activeRegistrationCount(state, selected.id)}/{selected.capacity} 人</Badge></div><SheetTitle className="pr-8 text-2xl">{selected.title}</SheetTitle><SheetDescription>由{state.users.find((u) => u.id === selected.organizerId)?.name ?? '组织教师'}组织</SheetDescription></SheetHeader><div className="space-y-6 p-6"><div className="detail-row"><CalendarDays /><div><span>活动时间</span><strong>{formatDate(selected.startAt)}</strong></div></div><div className="detail-row"><MapPin /><div><span>活动地点</span><strong>{selected.location}</strong></div></div><div className="detail-row"><Users /><div><span>报名情况</span><strong>{activeRegistrationCount(state, selected.id)} 人已报名，剩余 {Math.max(0, selected.capacity - activeRegistrationCount(state, selected.id))} 个名额</strong></div></div><div>{selected.eligibilityText && <p className="mb-4 rounded-xl bg-secondary p-3 text-sm">参加条件：{selected.eligibilityText}</p>}<h3 className="mb-3 font-semibold">活动说明</h3><p className="leading-7 text-muted-foreground">{selected.description}</p></div></div><SheetFooter className="border-t bg-card p-6">{activeRegistration(state, selected.id, user.id) ? <Button variant="destructive" className="h-11" onClick={() => update(cancelRegistration(state, selected.id, user.id), '报名已取消，名额已释放')}>取消报名</Button> : <Button className="h-11" disabled={Boolean(canRegister(state, selected.id, user.id))} onClick={() => update(registerForActivity(state, selected.id, user.id), '报名成功，可在“我的报名”中查看')}>{canRegister(state, selected.id, user.id) ?? '确认报名'}</Button>}</SheetFooter></>}
         </SheetContent>
       </Sheet>
     </div>
@@ -306,11 +311,11 @@ function TeacherDashboard({ user, state, onStateChange, feedback, setFeedback }:
   const [rosterId, setRosterId] = useState<string | null>(null);
   const owned = state.activities.filter((item) => item.organizerId === user.id);
   const rosterActivity = owned.find((item) => item.id === rosterId) ?? null;
-  const roster = rosterActivity ? state.registrations.filter((item) => item.activityId === rosterActivity.id && item.status === 'active').map((item) => state.users.find((userItem) => userItem.id === item.studentId)).filter(Boolean) as User[] : [];
+
 
   function openEditor(activity?: Activity) {
     setEditingId(activity?.id);
-    setForm(activity ? { title: activity.title, category: activity.category, description: activity.description, location: activity.location, startAt: activity.startAt.slice(0, 16), endAt: activity.endAt.slice(0, 16), capacity: activity.capacity } : createBlankActivity());
+    setForm(activity ? { title: activity.title, category: activity.category, description: activity.description, location: activity.location, startAt: localInputValue(new Date(activity.startAt)), endAt: localInputValue(new Date(activity.endAt)), capacity: activity.capacity, requiresReview: activity.requiresReview ?? false, eligibilityText: activity.eligibilityText ?? '' } : createBlankActivity());
     setEditorOpen(true);
   }
 
@@ -341,10 +346,10 @@ function TeacherDashboard({ user, state, onStateChange, feedback, setFeedback }:
       <Card className="border-0 shadow-sm ring-1 ring-border"><CardHeader><CardTitle>我的活动</CardTitle><CardDescription>草稿仅教师可见，发布后学生可以报名。</CardDescription></CardHeader><CardContent className="px-2 sm:px-4"><Table><TableHeader><TableRow><TableHead>活动</TableHead><TableHead>时间与地点</TableHead><TableHead>状态</TableHead><TableHead>报名</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{owned.map((activity) => <TableRow key={activity.id}><TableCell><div className="max-w-[240px] whitespace-normal"><strong>{activity.title}</strong><p className="mt-1 text-xs text-muted-foreground">{activity.category}</p></div></TableCell><TableCell><div className="whitespace-normal text-sm"><p>{formatDate(activity.startAt)}</p><p className="mt-1 text-xs text-muted-foreground">{activity.location}</p></div></TableCell><TableCell><Badge variant={activity.status === 'published' ? 'default' : activity.status === 'cancelled' ? 'destructive' : 'secondary'}>{statusLabels[activity.status]}</Badge></TableCell><TableCell>{activeRegistrationCount(state, activity.id)}/{activity.capacity}</TableCell><TableCell><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" onClick={() => setRosterId(activity.id)}><Users />名单</Button><Button size="sm" variant="ghost" disabled={activity.status === 'cancelled'} onClick={() => openEditor(activity)}><Pencil />编辑</Button>{activity.status === 'draft' && <Button size="sm" onClick={() => changeStatus(activity.id, 'published')}>发布</Button>}{activity.status !== 'cancelled' && <Button size="sm" variant="destructive" onClick={() => setCancelId(activity.id)}>取消</Button>}</div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle className="text-xl">{editingId ? '编辑活动' : '创建活动草稿'}</DialogTitle><DialogDescription>先保存为草稿，确认信息后再发布给学生。</DialogDescription></DialogHeader><form className="grid gap-4 sm:grid-cols-2" onSubmit={submitActivity}><div className="space-y-2 sm:col-span-2"><Label htmlFor="activity-title">活动名称</Label><Input id="activity-title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-category">活动类型</Label><Input id="activity-category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-location">活动地点</Label><Input id="activity-location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-start">开始时间</Label><Input id="activity-start" type="datetime-local" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-end">结束时间</Label><Input id="activity-end" type="datetime-local" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-capacity">人数上限</Label><Input id="activity-capacity" type="number" min="1" step="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} required /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="activity-description">活动说明</Label><Textarea id="activity-description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="min-h-28" required /></div><DialogFooter className="sm:col-span-2"><Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>返回</Button><Button type="submit">保存{editingId ? '修改' : '草稿'}</Button></DialogFooter></form></DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle className="text-xl">{editingId ? '编辑活动' : '创建活动草稿'}</DialogTitle><DialogDescription>先保存为草稿，确认信息后再发布给学生。</DialogDescription></DialogHeader><form className="grid gap-4 sm:grid-cols-2" onSubmit={submitActivity}><div className="space-y-2 sm:col-span-2"><Label htmlFor="activity-title">活动名称</Label><Input id="activity-title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-category">活动类型</Label><Input id="activity-category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-location">活动地点</Label><Input id="activity-location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-start">开始时间</Label><Input id="activity-start" type="datetime-local" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-end">结束时间</Label><Input id="activity-end" type="datetime-local" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} required /></div><div className="space-y-2"><Label htmlFor="activity-capacity">人数上限</Label><Input id="activity-capacity" type="number" min="1" step="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} required /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="activity-description">活动说明</Label><Textarea id="activity-description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="min-h-28" required /></div><div className="space-y-2 sm:col-span-2"><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.requiresReview)} onChange={(e) => setForm({ ...form, requiresReview: e.target.checked })} />有参加条件，需要资格确认</label>{form.requiresReview && <><Label htmlFor="eligibility">参加条件</Label><Textarea id="eligibility" value={form.eligibilityText ?? ''} onChange={(e) => setForm({ ...form, eligibilityText: e.target.value })} required /><p className="text-sm text-muted-foreground">新申请及审核后的名额分配待业务规则确认后开放。</p></>}</div><DialogFooter className="sm:col-span-2"><Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>返回</Button><Button type="submit">保存{editingId ? '修改' : '草稿'}</Button></DialogFooter></form></DialogContent>
       </Dialog>
 
-      <Sheet open={Boolean(rosterActivity)} onOpenChange={(open) => !open && setRosterId(null)}><SheetContent className="w-full sm:max-w-lg"><SheetHeader className="border-b p-6"><SheetTitle className="text-xl">{rosterActivity?.title}</SheetTitle><SheetDescription>当前有效报名 {roster.length} 人</SheetDescription></SheetHeader><div className="space-y-3 p-6">{roster.length ? roster.map((student) => <div key={student.id} className="flex items-center gap-3 rounded-xl border p-4"><span className="grid size-10 place-items-center rounded-full bg-secondary text-primary"><UserRound className="size-5" /></span><div><p className="font-medium">{student.name}</p><p className="text-sm text-muted-foreground">{student.email}</p></div></div>) : <div className="empty-state"><Users className="size-8" /><h3>暂无报名学生</h3><p>活动发布后，学生报名将显示在这里。</p></div>}</div></SheetContent></Sheet>
+      <Sheet open={Boolean(rosterActivity)} onOpenChange={(open) => !open && setRosterId(null)}><SheetContent className="w-full overflow-y-auto sm:max-w-xl"><SheetHeader className="border-b p-6"><SheetTitle>{rosterActivity?.title}</SheetTitle><SheetDescription>报名与资格确认</SheetDescription></SheetHeader>{rosterActivity && <RegistrationRoster state={state} activityId={rosterActivity.id} teacherId={user.id} onResult={(result) => commit(result, '资格结果已记录，未分配参加名额')} />}</SheetContent></Sheet>
 
       <AlertDialog open={Boolean(cancelId)} onOpenChange={(open) => !open && setCancelId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogMedia><XCircle className="text-destructive" /></AlertDialogMedia><AlertDialogTitle>确认取消活动？</AlertDialogTitle><AlertDialogDescription>活动取消后将无法再次发布，已有报名记录会保留用于说明历史。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>返回</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { if (cancelId) changeStatus(cancelId, 'cancelled'); setCancelId(null); }}>确认取消</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
@@ -353,7 +358,7 @@ function TeacherDashboard({ user, state, onStateChange, feedback, setFeedback }:
 
 function Workspace({ user, state, onStateChange, onLogout, feedback, setFeedback }: { user: User; state: AppState; onStateChange: (state: AppState) => void; onLogout: () => void; feedback: Feedback; setFeedback: (feedback: Feedback) => void }) {
   return (
-    <main className="min-h-screen bg-background"><header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur"><div className="mx-auto flex h-18 max-w-[1400px] items-center justify-between px-5 sm:px-8"><Logo /><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-medium">{user.name}</p><p className="text-xs text-muted-foreground">{user.role === 'teacher' ? '活动组织教师' : '学生用户'}</p></div><Badge variant="secondary">{user.role === 'teacher' ? '教师' : '学生'}</Badge><Button variant="ghost" size="icon" aria-label="退出登录" onClick={onLogout}><LogOut /></Button></div></div></header>{user.role === 'teacher' ? <TeacherDashboard user={user} state={state} onStateChange={onStateChange} feedback={feedback} setFeedback={setFeedback} /> : <StudentDashboard user={user} state={state} onStateChange={onStateChange} feedback={feedback} setFeedback={setFeedback} />}</main>
+    <main className="min-h-screen bg-background"><header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur"><div className="mx-auto flex h-18 max-w-[1400px] items-center justify-between px-5 sm:px-8"><Logo /><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-medium">{user.name}</p><p className="text-xs text-muted-foreground">{roleLabels[user.role]}</p></div><Badge variant="secondary">{roleLabels[user.role]}</Badge><Button variant="ghost" size="icon" aria-label="退出登录" onClick={onLogout}><LogOut /></Button></div></div></header>{user.role === 'admin' ? <AdminDashboard user={user} state={state} onStateChange={onStateChange} /> : user.role === 'teacher' ? <TeacherDashboard user={user} state={state} onStateChange={onStateChange} feedback={feedback} setFeedback={setFeedback} /> : <StudentDashboard user={user} state={state} onStateChange={onStateChange} feedback={feedback} setFeedback={setFeedback} />}</main>
   );
 }
 
@@ -361,6 +366,7 @@ export default function CampusApp() {
   const [state, setState] = useState<AppState | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     void loadOrCreateState()
@@ -369,7 +375,15 @@ export default function CampusApp() {
         const savedUserId = loadSession();
         if (savedUserId && nextState.users.some((item) => item.id === savedUserId)) setCurrentUserId(savedUserId);
       })
-      .catch(() => setFeedback({ kind: 'error', text: '活动数据初始化失败，请刷新页面重试' }));
+      .catch((error: unknown) => setLoadError(`数据读取失败，原数据已保留：${error instanceof Error ? error.message : '未知错误'}`));
+  }, []);
+
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === STORE_KEY) void loadOrCreateState().then(setState).catch(() => setLoadError('数据同步失败，原始数据已保留'));
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
   }, []);
 
   const currentUser = useMemo(() => state?.users.find((item) => item.id === currentUserId) ?? null, [state, currentUserId]);
@@ -475,6 +489,7 @@ export default function CampusApp() {
     setFeedback(null);
   }
 
+  if (loadError) return <main className="workspace-content"><h1>数据需要检查</h1><p className="mt-4" role="alert">{loadError}</p><p className="mt-3">请先备份浏览器数据，再检查导入内容。系统不会自动删除已有记录。</p></main>;
   if (!state) return <main className="grid min-h-screen place-items-center bg-background"><output className="flex items-center gap-3 text-muted-foreground"><Clock3 className="size-5 animate-pulse text-primary" />正在准备活动数据…</output></main>;
   return currentUser ? <Workspace user={currentUser} state={state} onStateChange={updateState} onLogout={logout} feedback={feedback} setFeedback={setFeedback} /> : <AuthScreen state={state} onStateChange={updateState} onLogin={login} feedback={feedback} setFeedback={setFeedback} />;
 }
