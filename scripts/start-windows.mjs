@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,52 @@ if (major < 22 || (major === 22 && minor < 13)) {
 await access(cli);
 console.log(`Runtime: ${process.execPath} (${process.version}, ${process.arch})`);
 if (process.argv.includes('--check')) process.exit(0);
+
+function openBrowser(url) {
+  if (process.argv.includes('--no-open')) return;
+  const browser = spawn('cmd.exe', ['/d', '/c', 'start', '', url], {
+    stdio: 'ignore', windowsHide: true,
+  });
+  browser.on('error', () => console.log(`Open ${url} in your browser.`));
+}
+
+async function pageReady(url) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+    return response.ok && (await response.text()).includes('校园活动');
+  } catch { return false; }
+}
+
+async function openExistingServer() {
+  let lock;
+  try {
+    lock = JSON.parse(await readFile(resolve(root, '.vinext/dev/lock.json'), 'utf8'));
+  } catch { return false; }
+  if (!Number.isInteger(lock.pid) || lock.pid <= 0 ||
+      !Number.isInteger(lock.port) || lock.port < 1024 || lock.port > 65535 ||
+      typeof lock.cwd !== 'string' ||
+      resolve(lock.cwd).toLowerCase() !== resolve(root).toLowerCase() ||
+      !['localhost', '127.0.0.1', '::1'].includes(lock.hostname)) return false;
+  try { process.kill(lock.pid, 0); }
+  catch (error) { if (error.code !== 'EPERM') return false; }
+  const hostname = lock.hostname === '::1' ? '[::1]' : lock.hostname;
+  const existingUrl = `http://${hostname}:${lock.port}/`;
+  console.log(`Campus app is already running. Opening ${existingUrl}`);
+  const deadline = Date.now() + 180000;
+  while (Date.now() < deadline) {
+    if (await pageReady(existingUrl)) {
+      console.log(`Ready: ${existingUrl}`);
+      openBrowser(existingUrl);
+      return true;
+    }
+    try { process.kill(lock.pid, 0); }
+    catch (error) { if (error.code !== 'EPERM') return false; }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1000));
+  }
+  throw new Error('The existing server is not responding. Close its startup window and retry.');
+}
+
+if (await openExistingServer()) process.exit(0);
 
 async function portAvailable(port) {
   return new Promise((resolveAvailable) => {
@@ -48,22 +94,16 @@ process.on('SIGTERM', () => { finished = true; child.kill(); });
 
 const deadline = Date.now() + 180000;
 while (!finished && Date.now() < deadline) {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
-    if (response.ok && (await response.text()).includes('校园活动')) {
+    if (await pageReady(url)) {
       ready = true;
       console.log(`Ready: ${url}`);
-      if (!process.argv.includes('--no-open')) {
-        const browser = spawn('cmd.exe', ['/d', '/c', 'start', '', url], {
-          stdio: 'ignore', windowsHide: true,
-        });
-        browser.on('error', () => console.log(`Open ${url} in your browser.`));
-      }
+      openBrowser(url);
       break;
     }
-  } catch { /* The server is still starting. */ }
   await new Promise((resolveWait) => setTimeout(resolveWait, 1000));
 }
+// Two quick double-clicks may race before the first process writes its lock.
+if (!ready && finished && await openExistingServer()) process.exitCode = 0;
 if (!ready && !finished) {
   console.error('The server did not become ready within 3 minutes. Review the errors above.');
   child.kill();
