@@ -52,3 +52,8 @@ Windows、Node.js、TypeScript、vinext；浏览器为 Microsoft Edge，桌面�
 不宣称候补入队、排序、退出、递补、审核后安排名额、停用后登录阻断或会话撤销已通过验收。用户选择只实现已确认部分；完整验收状态见 v2-acceptance-status.md。
 
 本地存储同步不具备服务端事务；未验证真实多设备并发。依赖安装报告有27项依赖漏洞（含3项critical），来自继承技术栈；未进行可能改变技术栈的强制升级。系统限于课堂本地原型，后续如需上线须另行评估依赖和认证。
+
+
+## 通用单文件启动补充验证
+
+新增 `打开校园活动系统.html`，内嵌页面、脚本和样式，复用现有业务代码，面向 Windows、macOS、Linux 的现代浏览器。2026年10月9日本机Edge与WebKit通过file://运行，各7项，共14项通过，无HTTP请求或页面脚本错误。没有实际macOS/Linux设备实测；Firefox测试程序因本机SideBySide依赖缺失未能启动。构建及验证边界详见portable-delivery.md。源码开发保留启动系统.cmd，并增加完整解压检查。

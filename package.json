@@ -13,7 +13,9 @@
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "format": "oxfmt",
     "test:browser": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:portable": "node scripts/build-portable.mjs",
+    "test:portable": "playwright test --config playwright.portable.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
