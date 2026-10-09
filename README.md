@@ -1,5 +1,7 @@
 # 校园活动管理系统 V2.0
 
+代码仓库：https://github.com/xiaohao66109/campus-activity-management
+
 基于 V1.0 的有限范围迭代。用户选择仅实现已确认内容，未明确流程暂不启用。原始代码在 Git 标签 v1.0-baseline 中，原始 ZIP 未修改。
 
 ## 运行
